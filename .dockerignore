@@ -1,0 +1,16 @@
+.git
+.github
+__pycache__
+*.pyc
+venv
+.venv
+output
+.watermark-review
+data
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.wmv
+*.flv

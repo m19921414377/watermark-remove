@@ -1,0 +1,8 @@
+/venv
+/output
+/video
+log
+__pycache__/
+*.pyc
+.watermark-review/
+data/
