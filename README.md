@@ -1,142 +1,182 @@
-# WatermarkRemover
+# Watermark Remove
 
-一个基于LAMA模型的视频水印移除工具，能够批量清除视频中的固定水印。
+Video watermark removal workflow based on LaMa inpainting.
 
-## 效果展示
+This fork is designed for batches where each video may have a different watermark position. It provides a lightweight WebUI to mark the watermark area for every video, then processes the videos from the saved manifest. Docker and GHCR deployment are supported.
 
-原始帧
-<a href=''><img src='https://raw.githubusercontent.com/lxulxu/WatermarkRemover/master/image/origin.jpg'>
+## Features
 
-去除水印
-<a href=''><img src='https://raw.githubusercontent.com/lxulxu/WatermarkRemover/master/image/no_watermark.jpg'>
+- Remove fixed-position watermarks from videos with LaMa inpainting.
+- Mark a different watermark box for each video.
+- Save watermark metadata to `watermark-map.json`.
+- Batch process videos from the manifest.
+- Preserve the input folder structure in the output folder.
+- Supports CUDA GPU processing when available.
+- Docker image publishing through GitHub Container Registry.
 
-## 系统要求
+## Workflow
 
-- Python 3.10
+1. Put source videos in an input folder.
+2. Start the WebUI.
+3. Draw the watermark region for each video.
+4. Save `watermark-map.json`.
+5. Run batch processing on a GPU server.
+6. Review the cleaned output videos.
 
-## 安装步骤
+## Docker Quick Start
 
-- 克隆仓库
+Create local folders:
 
 ```bash
-git clone https://github.com/lxulxu/WatermarkRemover.git
-cd WatermarkRemover
+mkdir -p data/input data/output data/work
 ```
 
-- 创建并激活虚拟环境（可选，推荐）
+Put videos under:
+
+```text
+data/input/
+```
+
+Start the WebUI:
 
 ```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
+docker compose up --build
 ```
 
-- 安装基础依赖
+Open:
+
+```text
+http://localhost:7860
+```
+
+Draw a rectangle around the watermark for each video. Use a slightly larger box than the visible watermark. The WebUI saves:
+
+```text
+data/work/watermark-map.json
+```
+
+## Batch Processing
+
+After the manifest is ready, run:
+
+```bash
+docker compose run --rm --entrypoint python watermark-remover \
+  process_manifest.py \
+  --manifest /data/work/watermark-map.json \
+  --input /data/input \
+  --output /data/output \
+  --workdir /data/work \
+  --device cuda \
+  --overwrite
+```
+
+For a small test:
+
+```bash
+docker compose run --rm --entrypoint python watermark-remover \
+  process_manifest.py \
+  --manifest /data/work/watermark-map.json \
+  --input /data/input \
+  --output /data/output \
+  --workdir /data/work \
+  --device cuda \
+  --limit 3 \
+  --overwrite
+```
+
+## GHCR Deployment
+
+The GitHub Actions workflow publishes Docker images to:
+
+```text
+ghcr.io/m19921414377/watermark-remove:latest
+```
+
+Run the WebUI on a GPU server:
+
+```bash
+docker run --rm --gpus all \
+  -p 7860:7860 \
+  -v /path/to/input:/data/input \
+  -v /path/to/output:/data/output \
+  -v /path/to/work:/data/work \
+  -v watermark-cache:/cache \
+  ghcr.io/m19921414377/watermark-remove:latest
+```
+
+Run batch processing:
+
+```bash
+docker run --rm --gpus all \
+  -v /path/to/input:/data/input \
+  -v /path/to/output:/data/output \
+  -v /path/to/work:/data/work \
+  -v watermark-cache:/cache \
+  --entrypoint python \
+  ghcr.io/m19921414377/watermark-remove:latest \
+  process_manifest.py \
+  --manifest /data/work/watermark-map.json \
+  --input /data/input \
+  --output /data/output \
+  --workdir /data/work \
+  --device cuda \
+  --overwrite
+```
+
+If the repository or package is private, run `docker login ghcr.io` on the server before pulling the image.
+
+## Local Python Usage
+
+Python 3.10 is recommended.
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-- 安装PyTorch（二选一）
-
-  1. CPU版本
-
-    ```bash
-    pip install torch
-    ```
-  
-  2. GPU版本（需要NVIDIA显卡）
-
-      - 安装CUDA Toolkit
-
-  	    访问 [NVIDIA CUDA下载页面](https://developer.nvidia.com/cuda-downloads)，选择对应的操作系统和版本。
-
-      - 安装cuDNN
-  
-        访问 [NVIDIA cuDNN下载页面](https://developer.nvidia.com/cudnn-downloads)，选择与CUDA版本匹配的cuDNN。
-
-      - 安装GPU版本的PyTorch
-
-        访问 [PyTorch官方网站](https://pytorch.org/get-started/locally/)，选择与CUDA版本匹配的命令安装，例如：
-        
-  
-         ```bash
-          pip3 install torch==2.6.0+cu126 torchvision==0.21.0 torchaudio==2.6.0+cu126 --index-url https://download.pytorch.org/whl/cu126
-         ```
-  
-
-
-​	程序会自动检测是否有可用的GPU输出相关信息并自动选择处理方式。
-
-## 使用方法
-
-### Docker / GHCR 部署
-
-本分支额外支持 Docker 部署和 GitHub Container Registry 自动发布。详见 [DOCKER.md](DOCKER.md)。
-
-新增流程支持每个视频单独标注水印区域：
-
-1. 运行 WebUI，为每个视频画自己的水印框并保存 `watermark-map.json`。
-2. 在 GPU 服务器上读取 `watermark-map.json`，逐个视频调用 LaMA 修复。
-
-### 基本用法
-
-处理单个视频目录中的所有视频：
+Start the per-video watermark WebUI:
 
 ```bash
-python watermark_remover.py --input /path/to/videos --output /path/to/output
+python watermark_manifest_webui.py \
+  --input /path/to/videos \
+  --workdir /path/to/work \
+  --host 0.0.0.0 \
+  --port 7860
 ```
 
-### 带预览的处理
+Process videos from the manifest:
 
 ```bash
-python watermark_remover.py --input /path/to/videos --output /path/to/output --preview
+python process_manifest.py \
+  --manifest /path/to/work/watermark-map.json \
+  --input /path/to/videos \
+  --output /path/to/output \
+  --workdir /path/to/work \
+  --device cuda \
+  --overwrite
 ```
 
-### 命令行参数
+## Manifest Fields
 
-| 参数        | 简写 | 说明                   | 默认值         |
-| ----------- | ---- | ---------------------- | -------------- |
-| `--input`   | `-i` | 包含视频文件的输入目录 | `.` (当前目录) |
-| `--output`  | `-o` | 处理后视频的输出目录   | `output`       |
-| `--preview` | `-p` | 启用处理效果预览       | 禁用           |
+`watermark-map.json` stores one record per video:
 
-## 工作流程
+- `relative_path`: source video path relative to the input root.
+- `watermark`: `yes`, `no`, or `unknown`.
+- `mask_mode`: `threshold` or `rect`.
+- `x`, `y`, `w`, `h`: watermark box in original video pixels.
+- `notes`: optional review notes.
 
-1. **水印区域选择**：程序会显示视频一帧，手动框选水印区域后按**SPACE**或**ENTER**键继续。
-2. **效果预览**（可选）：显示处理效果预览，按**SPACE**或**ENTER**键确认或按**ESC**键取消退出程序。
-3. **视频处理**：初次运行程序使用LAMA模型需较长时间下载模型。
-4. **输出结果**： MP4格式视频
+`threshold` builds a mask from bright/dark pixels inside the box. `rect` uses the full rectangle.
 
-## 局限性
+## Notes
 
-- 只能处理固定位置的水印（不支持移动水印）
-- 同一批处理的视频尺寸必须一致
-- 同一批处理的视频水印必须一致
+- This tool is intended for videos you own or are authorized to edit.
+- Moving watermarks are not supported yet.
+- LaMa is slower than simple blur or delogo filters, but usually produces more natural results.
+- For best quality, process only the final clips you plan to use instead of full raw libraries.
+- Complex backgrounds may require a larger or adjusted mask and a second processing pass.
 
-## 常见问题
+## License
 
- **Q: GPU未正确启动，程序使用CPU运行**
-
- 运行时显示类似信息 `No GPU detected, using CPU for processing`
-
-A: 请按照 [LaMa Cleaner官方安装指南](https://lama-cleaner-docs.vercel.app/install/pip)检查你的环境配置
-
-  - 检查Python版本是否为3.10
-  - 检查已安装PyTorch版本是否有CPU版本，参考LaMa Cleaner官方网页说明
-
-    > If Lama Cleaner is not using GPU device, it might CPU version of pytorch is installed, please follow pytorch's get-started(opens in a new tab) to install GPU version.
-  
-  - 确保安装的CUDA、cuDNN和PyTorch版本和显卡兼容
-
-    > 感谢[@VitorX](https://github.com/VitorX)在[#issue11](https://github.com/lxulxu/WatermarkRemover/issues/11#issuecomment-3422248098)中提供的安装步骤
-
-    - 查询[NVIDIA CUDA兼容性页面](https://en.wikipedia.org/wiki/CUDA#GPUs_supported)选择对应的CUDA版本
-    - 查询[cuDNN官方页面](developer.nvidia.com/rdp/cudnn-archive)选择对应的cuDNN版本
-    - 查询[PyTorch官方页面](https://pytorch.org/get-started/locally/)选择对应PyTorch版本
-
-  程序正确检测到GPU会输出`GPU detected: NVIDIA XXX Using GPU for processing `提示信息
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=lxulxu/WatermarkRemover&type=Date)](https://star-history.com/#lxulxu/WatermarkRemover&Date)
+This project inherits the upstream license. See [LICENSE](LICENSE).
