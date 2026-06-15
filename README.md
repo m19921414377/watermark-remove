@@ -25,6 +25,8 @@ This fork is designed for batches where each video may have a different watermar
 
 ## Docker Quick Start
 
+The default Docker image is GPU-oriented and uses an NVIDIA CUDA runtime base image. On a GPU server, install NVIDIA Container Toolkit and run containers with `--gpus all`.
+
 Create local folders:
 
 ```bash
@@ -60,7 +62,7 @@ data/work/watermark-map.json
 After the manifest is ready, run:
 
 ```bash
-docker compose run --rm --entrypoint python watermark-remover \
+docker compose run --rm --entrypoint python3 watermark-remover \
   process_manifest.py \
   --manifest /data/work/watermark-map.json \
   --input /data/input \
@@ -73,7 +75,7 @@ docker compose run --rm --entrypoint python watermark-remover \
 For a small test:
 
 ```bash
-docker compose run --rm --entrypoint python watermark-remover \
+docker compose run --rm --entrypoint python3 watermark-remover \
   process_manifest.py \
   --manifest /data/work/watermark-map.json \
   --input /data/input \
@@ -112,7 +114,7 @@ docker run --rm --gpus all \
   -v /path/to/output:/data/output \
   -v /path/to/work:/data/work \
   -v watermark-cache:/cache \
-  --entrypoint python \
+  --entrypoint python3 \
   ghcr.io/m19921414377/watermark-remove:latest \
   process_manifest.py \
   --manifest /data/work/watermark-map.json \

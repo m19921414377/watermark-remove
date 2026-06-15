@@ -36,7 +36,7 @@ data/work/watermark-map.json
 After the manifest is ready:
 
 ```bash
-docker compose run --rm --entrypoint python watermark-remover \
+docker compose run --rm --entrypoint python3 watermark-remover \
   process_manifest.py \
   --manifest /data/work/watermark-map.json \
   --input /data/input \
@@ -82,7 +82,7 @@ docker run --rm --gpus all \
   -v /path/to/output:/data/output \
   -v /path/to/work:/data/work \
   -v watermark-cache:/cache \
-  --entrypoint python \
+  --entrypoint python3 \
   ghcr.io/m19921414377/watermark-remove:latest \
   process_manifest.py \
   --manifest /data/work/watermark-map.json \
@@ -95,7 +95,24 @@ docker run --rm --gpus all \
 
 ## CPU Build
 
-For a CPU-only image, override the torch index at build time:
+The default image is a CUDA GPU image based on NVIDIA CUDA runtime:
+
+```text
+nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+```
+
+You can change the CUDA base image and PyTorch wheel index at build time:
+
+```bash
+docker build \
+  --build-arg CUDA_IMAGE=nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04 \
+  --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cu126 \
+  -t watermark-remove:cu126 .
+```
+
+For a CPU-only image, use a CPU PyTorch wheel index and a non-CUDA base image by editing `Dockerfile` or creating a CPU-specific Dockerfile. The default Dockerfile intentionally targets GPU deployment.
+
+Older CPU-only example:
 
 ```bash
 docker build \
